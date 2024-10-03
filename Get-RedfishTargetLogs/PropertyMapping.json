@@ -1,0 +1,48 @@
+{
+    "#LogEntry.1.0.0.LogEntry": {
+        "Properties": {
+            "Message": ["Message"],
+            "Severity": ["Severity"],
+            "Created": ["Created"],
+            "RecordId": ["RecordId"],
+            "Class": ["Oem", "Hp", "Class"]
+        },
+        "LogFormat": "[{Created}] ({Severity}) - [{RecordId}] {Message} [{Class}]"
+    },
+    "#LogEntry.v1_11_0.LogEntry": {
+        "Properties": {
+            "Message": ["Message"],
+            "Severity": ["Severity"],
+            "Created": ["Created"],
+            "RecordId": ["RecordId"],
+            "EventNumber": ["Oem", "Hpe", "EventNumber"],
+            "ClassDescription": ["Oem", "Hpe", "ClassDescription"]
+        }
+    },
+    "#LogEntry.v1_4_2.LogEntry": {
+        "Properties": {
+            "Message": ["Message"],
+            "Id": ["Id"],
+            "Name": ["Name"],
+            "RecordId": ["RecordId"],
+            "SensorNumber": ["SensorNumber"],
+            "SensorType": ["SensorType"],
+            "Severity": ["Severity"],
+            "EventType": ["EventType"],
+            "EventTimestamp": ["EventTimestamp"],
+            "Description": ["Description"],
+            "EntryCode": ["EntryCode"],
+            "EntryType": ["EntryType"]
+        }
+    },
+    "#LogEntry.v1_1_0.LogEntry": {
+        "Properties": {
+            "Message": ["Message"],
+            "Severity": ["Severity"],
+            "Created": ["Created"],
+            "OEMSeverity": ["Oem", "Hpe", "Severity"],
+            "OEMClassDescription": ["Oem", "Hpe", "ClassDescription"],
+            "OEMUpdated": ["Oem", "Hpe", "Updated"]
+        }
+    }
+}

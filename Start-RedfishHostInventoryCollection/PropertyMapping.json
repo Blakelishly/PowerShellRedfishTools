@@ -1,0 +1,12 @@
+{
+    "SystemLog": {
+        "Properties": {
+            "BootOrder": ["Boot", "BootOrder"],
+            "TotalSystemMemoryGiB": ["MemorySummary", "TotalSystemMemoryGiB"]
+        },
+        "FallbackProperties": {
+            "BootOrder": ["Boot", "BootSourceOverrideSupported"]
+        },
+        "ResourceFilter": "/redfish/v1/Systems/*"
+    }
+}
