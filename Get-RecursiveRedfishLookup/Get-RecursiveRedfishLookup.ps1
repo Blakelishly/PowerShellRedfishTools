@@ -33,7 +33,7 @@ param (
     [string]$redfishURLRoot = '/redfish/v1/',
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputDirectory = ".\RedfishAPI",
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot "RedfishAPI"),
 
     [Parameter(Mandatory = $false)]
     [string]$URLFilter = '*'
@@ -44,16 +44,57 @@ $ErrorActionPreference = 'Continue'
 #endregion Variables
 
 #region Import Required Modules
-try {
-    Import-Module SNIASwordfish -Force -ErrorAction Stop
-} catch {
-    Write-Error "Failed to import SNIASwordfish module. $_"
-    exit 1
-}
+# try {
+#     Import-Module SNIASwordfish -Force -ErrorAction Stop
+# } catch {
+#     Write-Error "Failed to import SNIASwordfish module. $_"
+#     exit 1
+# }
 #endregion Import Required Modules
 
 #region Functions
 ################################################################################################################################
+function Connect-SwordfishTarget 
+{
+[CmdletBinding(DefaultParameterSetName='Default')]
+param ( [Parameter(Mandatory=$true)]    [string]    $Target,
+                                        [string]    $Port,            
+        [Validateset("http","https")]   [string]    $Protocol   = "https"            
+      )
+Process
+  {   if ( $Protocol -eq 'http')
+                {   $Global:Base = "http://$($Target):$($Port)"
+                } else 
+                {   $Global:Base = "https://$($Target)"                
+                }
+            $Global:RedFishRoot = "/redfish/v1/"
+            $Global:BaseTarget  = $Target
+            $Global:BaseUri     = $Base+$RedfishRoot    
+            $Global:MOCK        = $false
+            $PowerShellVersion = ($PSVersionTable.PSVersion).major
+            Try     {   
+                        $ReturnData = invoke-restmethod -uri "$BaseUri" -SkipCertificateCheck
+                    }
+            Catch   {   $_
+                    }
+            if ( $ReturnData )
+                    {   write-verbose "The Global Redfish Root Location variable named RedfishRoot will be set to $RedfishRoot"
+                        write-verbose "The Global Base Target Location variable named BaseTarget will be set to $BaseTarget"
+                        write-verbose "The Global Base Uri Location variable named BaseUri will be set to $BaseUri"            
+                        return $ReturnData
+                    } 
+                else 
+                    {   Write-verbose "Since no connection was made, the global connection variables have been removed"
+                        remove-variable -name RedfishRoot -scope Global
+                        remove-variable -name BaseTarget -scope Global
+                        remove-variable -name Base -scope Global
+                        remove-variable -name BaseUri -scope Global
+                        remove-variable -name MOCK -scope Global
+                        Write-Error "No RedFish/Swordfish target Detected or wrong port used at that address"
+                    }
+  }
+} 
+Set-Alias -name 'Connect-RedfishTarget' -value 'Connect-SwordfishTarget'
 #### Function to authenticate to a Redfish or Swordfish target ####
 # This function sends a POST request to the session service to get a session token
 # Instead of using the SNIA Swordfish module, this module is used, as we need to populate the session ID to disconnect it later

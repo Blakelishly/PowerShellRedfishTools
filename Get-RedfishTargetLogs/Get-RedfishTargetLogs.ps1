@@ -33,7 +33,7 @@ param (
     [string]$OutputDirectory = ".\Logs",
 
     [Parameter(Mandatory = $false)]
-    [string]$PropertyMappingFile = ".\PropertyMapping.json",
+    [string]$PropertyMappingFile = (Join-Path $PSScriptRoot "PropertyMappings.json"),
 
     [Parameter(Mandatory = $false)]
     [bool]$JSONOutput = $true  # Parameter to control output format
@@ -44,16 +44,56 @@ $ErrorActionPreference = 'Stop'  # Stop on all errors
 #endregion Variables
 
 #region Import Required Modules
-try {
-    Import-Module SNIASwordfish -Force -ErrorAction Stop
-} catch {
-    Write-Error "Failed to import SNIASwordfish module. $_"
-    exit 1
-}
+# try {
+#     Import-Module SNIASwordfish -Force -ErrorAction Stop
+# } catch {
+#     Write-Error "Failed to import SNIASwordfish module. $_"
+#     exit 1
+# }
 #endregion Import Required Modules
 
 #region Functions
 ################################################################################################################################
+function Connect-SwordfishTarget 
+{
+[CmdletBinding(DefaultParameterSetName='Default')]
+param ( [Parameter(Mandatory=$true)]    [string]    $Target,
+                                        [string]    $Port,            
+        [Validateset("http","https")]   [string]    $Protocol   = "https"            
+      )
+Process
+  {   if ( $Protocol -eq 'http')
+                {   $Global:Base = "http://$($Target):$($Port)"
+                } else 
+                {   $Global:Base = "https://$($Target)"                
+                }
+            $Global:RedFishRoot = "/redfish/v1/"
+            $Global:BaseTarget  = $Target
+            $Global:BaseUri     = $Base+$RedfishRoot    
+            $Global:MOCK        = $false
+            Try     {   
+                        $ReturnData = invoke-restmethod -uri "$BaseUri" -SkipCertificateCheck
+                    }
+            Catch   {   $_
+                    }
+            if ( $ReturnData )
+                    {   write-verbose "The Global Redfish Root Location variable named RedfishRoot will be set to $RedfishRoot"
+                        write-verbose "The Global Base Target Location variable named BaseTarget will be set to $BaseTarget"
+                        write-verbose "The Global Base Uri Location variable named BaseUri will be set to $BaseUri"            
+                        return $ReturnData
+                    } 
+                else 
+                    {   Write-verbose "Since no connection was made, the global connection variables have been removed"
+                        remove-variable -name RedfishRoot -scope Global
+                        remove-variable -name BaseTarget -scope Global
+                        remove-variable -name Base -scope Global
+                        remove-variable -name BaseUri -scope Global
+                        remove-variable -name MOCK -scope Global
+                        Write-Error "No RedFish/Swordfish target Detected or wrong port used at that address"
+                    }
+  }
+} 
+Set-Alias -name 'Connect-RedfishTarget' -value 'Connect-SwordfishTarget'
 #### Function to authenticate to a Redfish or Swordfish target ####
 # This function sends a POST request to the session service to get a session token
 # Instead of using the SNIA Swordfish module, this module is used, as we need to populate the session ID to disconnect it later
@@ -98,10 +138,14 @@ function Set-TargetAuthentication {
 
         if ( $authResult ) {
             $Global:XAuthToken = (($authResult.Headers).'X-Auth-Token')
-            # $Global:SessionUri = ($authResult.Content | ConvertFrom-Json).message
-            $Global:tmp = $auth
 
-            $NewSessionUri = $authResult.Headers.Location
+            # Check if $authResult.Headers.Location is a valid property
+            # If not, use $authResult.content converted from JSON as the session URI
+            if ($authResult.Headers.Location) {
+                $NewSessionUri = $authResult.Headers.Location
+            } else {
+                $NewSessionUri = ($authResult.Content | ConvertFrom-Json).message
+            }
 
             $baseUriLength = $Global:Base.Length
             if ($NewSessionUri.StartsWith($Global:Base)) {
@@ -160,14 +204,87 @@ function Disconnect-SwordfishTarget {
 }
 Set-Alias -Name 'Disconnect-RedfishTarget' -Value 'Disconnect-SwordfishTarget'
 
+#### Function to get data from a Redfish URL ####
+# This function is a wrapper around Invoke-WebRequest to handle Redfish authentication
+# Instead of using the SNIA Swordfish module, this module is used, as it allows headers to be retrieved with Invoke-WebRequest
+function Invoke-RedfishWebRequest {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$URL,
+        [string]$Method = 'GET',
+        $Body
+    )
+    try {
+        # Prepare the full URL
+        if ($URL -notmatch '^https?://') {
+            $fullURL = $Global:Base + $URL
+        } else {
+            $fullURL = $URL
+        }
+        # Prepare headers
+        $headers = @{}
+        if ($Global:XAuthToken) {
+            $headers['X-Auth-Token'] = $Global:XAuthToken
+        }
+        else {
+            Write-Warning "No auth token is configured. Skipping headers."
+        }
+        # Send GET request
+        Write-Verbose "Sending GET request to $fullURL"
+        if ($Body) {   
+            $response = Invoke-WebRequest -Method $Method -Uri $fullURL -Headers $headers -SkipCertificateCheck -Body $Body
+        } else {   
+            $response = Invoke-WebRequest -Method $Method -Uri $fullURL -Headers $headers -SkipCertificateCheck
+        }
+        
+        return $response
+    } catch {
+        Write-Error "Failed to get data from $URL. Error: $_"
+        throw $_
+    }
+}
+
+function Get-SwordfishByURL
+{
+[CmdletBinding()]
+    param(  
+        [Parameter(Mandatory=$True, ValueFromPipeline=$true)]
+        $URL
+    )
+    process {   
+        try {   
+            Write-Verbose "Getting Data from $URL"
+            $MyData = Invoke-RedfishWebRequest -url ( $URL ) -erroraction stop
+            if ( $MyData.exception ) {
+                return
+            } 
+            else {
+                Write-Verbose "Data Retrieved: $($MyData)"
+                return $MyData.content | ConvertFrom-Json
+            }
+        }
+        catch {   
+            $_
+            return
+        } 
+    }
+}
+Set-Alias -Value 'Get-SwordfishByURL' -Name 'Get-RedfishByURL'
+
 #### Function to get the system object ####
 function Get-Systems {
     [CmdletBinding()]
     param ()
     try {
-        $systems = Get-RedfishSystem
-        Write-Debug "System Info: $($systems | ConvertTo-Json -Depth 15)"
-        return $systems
+        $SystemData = Get-RedfishByURL -URL '/redfish/v1/Systems'
+        Write-Verbose "System Data: $($SystemData | ConvertTo-Json -Depth 15)"
+        $SysCollection=@()
+        foreach($Sys in ($SystemData).Members ) {   
+            $SysCollection +=  Get-RedfishByURL -URL ($Sys.'@odata.id')  
+        }
+        Write-Debug "System Info: $($SysCollection | ConvertTo-Json -Depth 15)"
+        return $SysCollection
     } catch {
         Write-Error "Failed to get system. Error: $_"
         throw $_
