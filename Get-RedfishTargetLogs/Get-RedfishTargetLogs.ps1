@@ -465,8 +465,8 @@ function Expand-LogFormat {
 
 #region Main Script
 ################################################################################################################################
-Write-Host "Executing script against $($TargetURIs.Count) target(s)"
-Write-Host "Target URIs: $($TargetURIs -join ', ') `n"
+Write-Output "Executing script against $($TargetURIs.Count) target(s)"
+Write-Output "Target URIs: $($TargetURIs -join ', ') `n"
 
 # Load property mappings
 try {
@@ -495,7 +495,7 @@ if (-not (Test-Path $OutputDirectory)) {
 
 ## Main script logic ##
 foreach ($targetURI in $TargetURIs) {
-    Write-Host "|- Processing target: $targetURI"
+    Write-Output "|- Processing target: $targetURI"
     try {
         # Authenticate to the target
         Set-TargetAuthentication -URI $targetURI -Credential $Credential
@@ -508,7 +508,7 @@ foreach ($targetURI in $TargetURIs) {
             continue
         }
 
-        Write-Host "|- Found $($systems.Count) system(s) for target: $targetURI"
+        Write-Output "|- Found $($systems.Count) system(s) for target: $targetURI"
 
         foreach ($system in $systems) {
 
@@ -528,8 +528,8 @@ foreach ($targetURI in $TargetURIs) {
                 $systemName = "System_$systemName_uri-$systemName_ID"
                 
             }
-            Write-Host "|-- System ID: $systemID"
-            Write-Host "|-- System Name: $systemName"
+            Write-Output "|-- System ID: $systemID"
+            Write-Output "|-- System Name: $systemName"
 
             # Get the log services object
             $logServices = Get-LogServices -SystemID $systemID
@@ -549,7 +549,7 @@ foreach ($targetURI in $TargetURIs) {
                 }
                 $logServiceName = ($logServiceURL -split '/')[-1]
                 
-                Write-Host "|-- Processing Log Collection: $logServiceName"
+                Write-Output "|-- Processing Log Collection: $logServiceName"
 
                 # Get the log entries
                 $entries = Get-LogEntries -LogServiceURL $logServiceURL
@@ -599,7 +599,7 @@ foreach ($targetURI in $TargetURIs) {
                     $systemInfo.Logs | ForEach-Object { $_.Entries | ForEach-Object { $_.Remove('LogFormat') } }
                     # Write the system information to a JSON file
                     $systemInfo | ConvertTo-Json -Depth 100 | Out-File -FilePath $outputFile -Encoding utf8
-                    Write-Host "|-- Logs saved to JSON file: $outputFile"
+                    Write-Output "|-- Logs saved to JSON file: $outputFile"
                 }
                 else {
                     # Create directories and write log files
@@ -662,12 +662,12 @@ Serial Number: $($system.SerialNumber)
                     
                     # Write the log content to file
                     $logContent | Out-File -FilePath $logFilePath -Encoding utf8
-                    Write-Host "|-- Log file saved to $logFilePath"
+                    Write-Output "|-- Log file saved to $logFilePath"
                 }
             }
 
             # Disconnect from the target
-            Write-Host "|- Disconnecting from system: $targetURI"
+            Write-Output "|- Disconnecting from system: $targetURI"
             Disconnect-RedfishTarget -ErrorAction SilentlyContinue
         }
     } catch {

@@ -73,7 +73,9 @@ pipeline {
                             -Credential (New-Object PSCredential('${TARGET_CREDENTIALS_USR}', (ConvertTo-SecureString '${TARGET_CREDENTIALS_PSW}' -AsPlainText -Force))) `
                             -OutputDirectory '/workspace/Output' `
                             -PropertyMappingFile '/workspace/Get-RedfishTargetLogs/PropertyMappings.json' `
-                            -JSONOutput $true
+                            -JSONOutput \$true
+                            -Verbose
+                            -Debug
                     """
                 }
             }
