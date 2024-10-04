@@ -7,6 +7,7 @@ pipeline {
         REPO_URL                        = "https://github.com/Blakelishly/PowerShellRedfishTools.git"   // Repository URL passed as a parameter
         BRANCH_NAME                     = "main"                                                        // Branch name passed as a parameter
         TARGET_CREDENTIALS_ID           = 'target-server-credentials'         // Descriptive ID of the Jenkins credentials for target server
+        TARGET_URIs                     = '10.0.0.16,10.0.0.17,10.0.100.10:8467,10.0.100.10:8470,10.0.100.10:8466,10.0.100.10:8472,10.0.100.10:8473'
     }
 
     stages {
