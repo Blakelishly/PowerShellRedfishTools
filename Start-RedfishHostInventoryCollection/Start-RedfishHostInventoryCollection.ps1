@@ -1,3 +1,42 @@
+#region License ############################################################
+# Copyright (c) 2024 Blake Cherry
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#endregion License ############################################################
+
+################################################################################################################################
+# Define parameters
+param (
+    [Parameter(Mandatory = $true)]
+    [string]$RootDirectory,
+
+    [Parameter(Mandatory = $false)]
+    [string]$CSVOutputPath = (Join-Path $PSScriptRoot "Output")
+)
+
+#region Variables
+$ErrorActionPreference = 'Stop'  # Stop on all errors
+#endregion Variables
+
+#region Functions
+################################################################################################################################
+### Function to import JSON data from a directory recursively
 function Import-RedfishJsonData {
     [CmdletBinding()]
     param (
@@ -11,8 +50,14 @@ function Import-RedfishJsonData {
 
     foreach ($file in $jsonFiles) {
         # Check if relative path includes 'redfish'
-        if ($file.DirectoryName -notlike '*redfish\v1\*') {
+        # IF WINDOWS, USE -notlike '*redfish\v1\*'
+        # IF LINUX OR MAC, USE -notlike '*redfish/v1/*'
+        if ($IsWindows -and $file.DirectoryName -notlike '*redfish\v1\*') {
             Write-Verbose "Skipping file '$($file.FullName)' because it is not under 'redfish\v1'."
+            continue
+        }
+        elseif (-not $IsWindows -and $file.DirectoryName -notlike '*redfish/v1/*') {
+            Write-Verbose "Skipping file '$($file.FullName)' because it is not under 'redfish/v1'."
             continue
         }
         # Get the relative path of the JSON file
@@ -26,6 +71,7 @@ function Import-RedfishJsonData {
     # Return the hashtable of imported data
     return $importedData
 }
+# Function to get a value from a nested hashtable or custom object based on a given path
 function Get-ValueFromSubPath {
     [CmdletBinding()]
     param (
@@ -37,8 +83,6 @@ function Get-ValueFromSubPath {
     )
 
     $currentObject = $Object
-
-    Write-Host $currentObject
 
     foreach ($key in $SubPath) {
         if ($currentObject -is [hashtable] -or $currentObject -is [pscustomobject]) {
@@ -58,89 +102,6 @@ function Get-ValueFromSubPath {
     return $currentObject
 }
 
-# function Start-ProcessRedfishEntries {
-#     [CmdletBinding()]
-#     param (
-#         [Parameter(Mandatory = $true)]
-#         [hashtable]$ImportedData,
-#         [Parameter(Mandatory = $true)]
-#         [PsCustomObject]$PropertyMappings
-#     )
-
-#     $processedEntries = @()
-
-#     foreach ($mapping in $PropertyMappings) {
-#         # Get the Properties, FallbackProperties, and URLFilter from the mapping
-#         $Properties = $mapping.Properties
-#         $FallbackProperties = $mapping.FallbackProperties
-#         $URLFilter = $mapping.ResourceFilter
-
-#         foreach ($URL in $ImportedData.keys) {
-#             # Split the URLs into segments
-#             $pathSegments = $URL -split '/'
-#             $filterSegments = $URLFilter -split '/'
-#             # Capture hostname as entry in pathSegments right before redfish
-#             $hostname = $pathSegments[$pathSegments.IndexOf('redfish') - 1]
-#             # Trim the URL to get the relative path - anything after redfish/v1
-#             $relativeURL = $URL.Substring($URL.IndexOf('redfish/v1') + 10)
-
-#             Write-Host "Relative URL: $relativeURL"
-#             Write-Host "Hostname: $hostname"
-            
-#             # Match filter
-#             $match = $false
-#             for ($i=0; $i -lt $pathSegments.Count; $i++) {
-#                 if ($i -ge $filterSegments.Count) {
-#                     break
-#                 }
-#                 elseif ($pathSegments[$i] -like $filterSegments[$i]) {
-#                     $match = $true
-#                 }
-#                 else {
-#                     $match = $false
-#                     break
-#                 }
-#             }
-#             if (-not $match) {
-#                 Write-Verbose "URL $URL does not match the filter '$URLFilter'. Skipping."
-#                 continue
-#             }
-#             else {
-#                 Write-Verbose "URL $URL matches the filter '$URLFilter'. Processing."
-                
-#                 foreach ($property in $Properties) {
-#                     # "TotalSystemMemoryGiB": ["MemorySummary", "TotalSystemMemoryGiB"]
-#                     # Based on each property, supplied as an array of strings representing the property path
-#                     $value = Get-ValueFromSubPath -Object $ImportedData[$URL] -SubPath $property
-#                     if ($value -eq $null) {
-#                         # If the value is null, try to get the value from the matching fallback property
-#                         $value = Get-ValueFromSubPath -Object $ImportedData[$URL] -SubPath $FallbackProperties.$property
-#                     }
-#                     # If the value is still null, set this value to "Not Found"
-#                     if ($value -eq $null) {
-#                         $value = "Not Found"
-#                     }
-#                     # Add the property and value to the output hashtable
-
-#                 }
-#             }
-#         }
-#     }
-
-#     return $processedEntries
-# }
-
-# # Step 1: Import JSON files recursively
-# $RootDirectory = '..\Get-RecursiveRedfishLookup\RedfishAPI\10.0.0.16'  # Update this path as needed
-# Write-Host "Importing JSON files from directory: $RootDirectory"
-# $importedData = Import-RedfishJsonData -RootDirectory $RootDirectory
-# Write-Host "Imported data from $($importedData.Count) JSON files."
-
-# # Step 2: Load property mappings from JSON file
-# $PropertyMappings = Get-Content -Path 'PropertyMapping.json' | ConvertFrom-Json
-
-# # Step 3: Process the imported data using the property mappings
-# Start-ProcessRedfishEntries -ImportedData $importedData -PropertyMappings $PropertyMappings
 #### Function to process properties ####
 function Get-PropertyValue {
     param (
@@ -155,42 +116,13 @@ function Get-PropertyValue {
         if ($null -eq $currentObject) {
             return $null
         }
-        Write-Host "Current Object: $currentObject"
-        Write-Host "Property Name: $propertyName"
+        Write-Verbose "Current Object: $currentObject"
+        Write-Verbose "Property Name: $propertyName"
         $currentObject = [PSCustomObject]$currentObject.$propertyName
     }
     return $currentObject
 }
-# function Get-PropertyValue {
-#     [CmdletBinding()]
-#     param (
-#         [Parameter(Mandatory = $true)]
-#         [psobject]$Object,
-
-#         [Parameter(Mandatory = $true)]
-#         [string[]]$SubPath
-#     )
-
-#     $currentObject = $Object
-
-#     foreach ($key in $SubPath) {
-#         if ($currentObject -is [hashtable] -or $currentObject -is [pscustomobject]) {
-#             # Use indexing to access the property/key
-#             if ($currentObject.PSObject.Properties.Name -contains $key -or $currentObject.ContainsKey($key)) {
-#                 $currentObject = $currentObject[$key]
-#             }
-#             else {
-#                 throw "Key '$key' not found in the current object."
-#             }
-#         }
-#         else {
-#             throw "Invalid path: '$key' is not a hashtable or custom object"
-#         }
-#     }
-
-#     return $currentObject
-# }
-
+### Function to process the Redfish entries based on the property mappings
 function Start-ProcessRedfishEntries {
     [CmdletBinding()]
     param (
@@ -203,15 +135,22 @@ function Start-ProcessRedfishEntries {
     # Initialize a hashtable to store processed entries indexed by hostname
     $processedEntries = @{}
 
+    Write-Verbose "Starting to process Redfish entries."
+    Write-Verbose "Imported data: $($PropertyMappings.GetEnumerator())"
+    # Iterate over each mapping
     foreach ($mapping in $PropertyMappings.GetEnumerator()) {
+        # Get name of the mapping
+        $mappingName = $mapping.Key
         # Get the Properties, FallbackProperties, and URLFilter from the mapping
         $Properties = $mapping.Value.Properties
         $FallbackProperties = $mapping.Value.FallbackProperties
         $URLFilter = $mapping.Value.ResourceFilter
+        $odataType = $mapping.Value.odataType
 
-        Write-Host "Processing mapping with URL filter: $URLFilter"
-        Write-Host "Properties: $($Properties.Keys -join ', ')"
-        Write-Host "Fallback Properties: $($FallbackProperties.Keys -join ', ')"
+        Write-Verbose "Processing mapping: $mappingName"
+        Write-Verbose "Processing mapping with URL filter: $URLFilter"
+        Write-Verbose "Properties: $($Properties.Keys -join ', ')"
+        Write-Verbose "Fallback Properties: $($FallbackProperties.Keys -join ', ')"
 
         foreach ($URL in $ImportedData.Keys) {
             # Split the URLs into segments
@@ -231,7 +170,7 @@ function Start-ProcessRedfishEntries {
 
             $pathSegments = $relativeURL -split '/'
 
-            Write-Host "Processing Hostname: $hostname, Relative URL: $relativeURL"
+            Write-Verbose "Processing Hostname: $hostname, Relative URL: $relativeURL"
 
             # Match filter
             $match = $true
@@ -250,15 +189,34 @@ function Start-ProcessRedfishEntries {
             }
 
             if (-not $match) {
-                Write-Host "URL '$relativeURL' does not match the filter '$URLFilter'. Skipping."
+                Write-Verbose "URL '$relativeURL' does not match the filter '$URLFilter'. Skipping."
                 continue
             }
             else {
-                Write-Host "URL '$relativeURL' matches the filter '$URLFilter'. Processing."
+                Write-Verbose "URL '$relativeURL' matches the filter '$URLFilter'. Processing."
 
+                # Check odata.type if specified
+                if (($odataType -ne $null -and $odataType -ne "") -and $ImportedData[$URL].ContainsKey('@odata.type')) {
+                    $odataTypeValue = $ImportedData[$URL]['@odata.type']
+                    if ($odataTypeValue -ne $odataType) {
+                        Write-Verbose "URL '$relativeURL' does not have the correct odata.type. Skipping."
+                        continue
+                    }
+                    else {
+                        Write-Verbose "URL '$relativeURL' has the correct odata.type. Processing."
+                    }
+                }
+                else {
+                    Write-Verbose "No odata.type specified. Processing."
+                }
+
+                # Initialize the hashtable for the mapping if it doesn't exist
+                if (-not $processedEntries.ContainsKey($mappingName)) {
+                    $processedEntries[$mappingName] = @{}
+                }
                 # Initialize the hashtable for the hostname/relativeURL if it doesn't exist
                 if (-not $processedEntries.ContainsKey($hostname)) {
-                    $processedEntries["$hostname-$relativeURL"] = @{}
+                    $processedEntries[$mappingName]["$hostname-$relativeURL"] = @{}
                 }
 
                 foreach ($propertyEntry in $Properties.GetEnumerator()) {
@@ -266,12 +224,12 @@ function Start-ProcessRedfishEntries {
                     $propertyPath = $propertyEntry.Value
 
                     # If a value for the property has already been processed and isnt null, skip
-                    if ($processedEntries["$hostname-$relativeURL"].ContainsKey($propertyName) -and $processedEntries["$hostname-$relativeURL"][$propertyName] -ne $null) {
-                        Write-Host "Property '$propertyName' already processed. Skipping."
+                    if ($processedEntries[$mappingName]["$hostname-$relativeURL"].ContainsKey($propertyName) -and $processedEntries["$hostname-$relativeURL"][$propertyName] -ne $null) {
+                        Write-Verbose "Property '$propertyName' already processed. Skipping."
                         continue
                     }
 
-                    Write-Host "Processing Property: $propertyName, Path: $($propertyPath -join ', ')"
+                    Write-Verbose "Processing Property: $propertyName, Path: $($propertyPath -join ', ')"
                     # Retrieve the value using the defined property path
                     # $value = Get-ValueFromSubPath -Object $ImportedData[$URL] -SubPath $propertyPath
 
@@ -280,53 +238,81 @@ function Start-ProcessRedfishEntries {
                         $propertyPath = @($propertyPath)
                     }
                     $value = Get-PropertyValue -Object $ImportedData[$URL] -SubPath $propertyPath
-                    Write-Host "Value: $value"
+                    Write-Verbose "Value: $value"
 
                     if ($value -eq $null) {
                         # Attempt to retrieve the value using the fallback property path
                         $fallbackPath = $FallbackProperties[$propertyName]
                         if ($fallbackPath -ne $null) {
-                            Write-Host "Fallback Property Path: $($fallbackPath -join ', ')"
+                            Write-Verbose "Fallback Property Path: $($fallbackPath -join ', ')"
                             # $value = Get-ValueFromSubPath -Object $ImportedData[$URL] -SubPath $fallbackPath
                             $value = Get-PropertyValue -Object $ImportedData[$URL] -SubPath $fallbackPath
-                            Write-Host "Fallback Value: $value"
+                            Write-Verbose "Fallback Value: $value"
                         }
                     }
                     # Ensure the value is cast to a string
-                    $value = $value | ConvertTo-Json -Depth 10 | Out-String
+                    $value = $value | ConvertTo-Json -Depth 100 | Out-String
                     # Add the property and value to the hostname's hashtable
-                    $processedEntries["$hostname-$relativeURL"][$propertyName] = $value
+                    $processedEntries[$mappingName]["$hostname-$relativeURL"][$propertyName] = $value
                 }
             }
         }
     }
 
-    Write-Host "Processed entries: $($processedEntries | select * | Out-String)"
+    Write-Verbose "Processed entries: $($processedEntries | select * | Out-String)"
 
-    # Convert the processed hashtable to an array of PSCustomObjects
-    $finalEntries = $processedEntries.GetEnumerator() | ForEach-Object {
-        $obj = $_.Value
-        $obj.Hostname = "$($_.Key)_$relativeURL"
-        [PSCustomObject]$obj
+    # Convert the processed hashtable to an array of objects
+    $finalEntries = @{}
+
+    # Iterate over a copy of processedEntries
+    foreach($entry in @($processedEntries.GetEnumerator())) {
+        $mappingName = $entry.Key
+        $mappingEntries = @($entry.Value.GetEnumerator())
+        foreach($mappingEntry in $mappingEntries) {
+            $aMapping = @()
+            foreach ($processedEntry in @($processedEntries[$mappingName].GetEnumerator())) {
+                $obj = $processedEntry.Value
+                $obj.Hostname = "$($processedEntry.Key)"
+                $aMapping += [PSCustomObject]$obj
+            }
+            $finalEntries[$mappingName] = $aMapping
+        }
     }
 
     return $finalEntries
 }
 
+#region Main Script
+################################################################################################################################
+
 # Step 1: Import JSON files recursively
-$RootDirectory = '..\Get-RecursiveRedfishLookup\RedfishAPI\10.0.0.17'  # Update this path as needed
 Write-Host "Importing JSON files from directory: $RootDirectory"
 $importedData = Import-RedfishJsonData -RootDirectory $RootDirectory
 Write-Host "Imported data from $($importedData.Count) JSON files."
 
 # Step 2: Load property mappings from JSON file
+Write-Host "Loading property mappings from 'PropertyMapping.json'."
 $PropertyMappings = Get-Content -Path 'PropertyMapping.json' -raw | ConvertFrom-Json -asHashtable
+Write-Host "Loaded property mappings from 'PropertyMapping.json'."
+Write-Verbose "Property mappings: $($PropertyMappings | select * | Out-String)"
 
 # Step 3: Process the imported data using the property mappings
+Write-Host "Processing imported data using property mappings."
 $processedEntries = Start-ProcessRedfishEntries -ImportedData $importedData -PropertyMappings $PropertyMappings
+Write-Host "Processed $($processedEntries.Count) entries."
 
 # Step 4: Export the processed entries to CSV
-$csvPath = 'RedfishDataOutput.csv'  # Specify your desired output path
-$processedEntries | Export-Csv -Path $csvPath -NoTypeInformation
-Write-Host "Exported processed data to '$csvPath'."
+Write-Host "Exporting processed data to '$CSVOutputPath'."
+# If the output path does not exist, create it
+if (-not (Test-Path $CSVOutputPath)) {
+    Write-Host "Creating output directory: $CSVOutputPath"
+    New-Item -ItemType Directory -Path $CSVOutputPath | Out-Null
+}
+foreach ($entry in $processedEntries.keys) {
+    # Corrected: Use $entry.Key instead of $entry.Name
+    $path = Join-Path $CSVOutputPath "$entry.csv"
+    Write-Debug "Exporting processed data for mapping '$($entry)' to path '$path'."
+    $processedEntries.$entry | Export-Csv -Path $path -NoTypeInformation
+    Write-Host "Exported processed data to $path."
+}
 return $processedEntries

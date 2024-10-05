@@ -1,0 +1,52 @@
+{
+    "BootSourceOverride": {
+        "GetCommand": {
+            "Method": "GET",
+            "PropertyNames": [
+                ["Boot", "BootSourceOverrideEnabled"],
+                ["Boot", "BootSourceOverrideTarget"],
+                ["Boot", "BootSourceOverrideSupported"]
+            ]
+        },
+        "SetCommand": {
+            "Method": "PATCH",
+            "BodyTemplate": {
+                "Boot": {
+                    "BootSourceOverrideTarget": "{{BootSourceOverrideTarget}}"
+                }
+            }
+        },
+        "DeleteCommand": {
+            "Method": ""
+        },
+        "GetResourceFilter": "/redfish/v1/Systems/*/",
+        "SetResourceFilter": "/redfish/v1/Systems/*/",
+        "DeleteResourceFilter": ""
+    },
+    "LocalUserAccountManagement": {
+        "GetCommand": {
+            "Method": "GET",
+            "PropertyNames": [
+                ["Id"],
+                ["UserName"],
+                ["Oem", "Hpe", "LoginName"],
+                ["RoleId"],
+                ["Oem", "Hpe", "Privileges"]
+            ]
+        },
+        "SetCommand": {
+            "Method": "POST",
+            "BodyTemplate": {
+                "UserName": "{{UserName}}",
+                "Password": "{{Password}}",
+                "RoleId": "{{RoleId}}"
+            }
+        },
+        "DeleteCommand": {
+            "Method": "DELETE"
+        },
+        "GetResourceFilter": "/redfish/v1/AccountService/Accounts/*/",
+        "SetResourceFilter": "/redfish/v1/AccountService/Accounts/",
+        "DeleteResourceFilter": "/redfish/v1/AccountService/Accounts/*/"
+    }
+}

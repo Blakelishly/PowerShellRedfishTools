@@ -19,7 +19,49 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #endregion License ############################################################
+<#
+.SYNOPSIS
+    A PowerShell script to authenticate, crawl, and retrieve data from Redfish API endpoints and save the responses to JSON files.
 
+.DESCRIPTION
+    This script connects to one or more Redfish API targets, authenticates the session, and recursively crawls the Redfish resource tree starting from the base URL (`/redfish/v1/`). 
+    It collects data from each endpoint and saves the responses in JSON format to an output directory. The script is useful for data center inventory automation or Redfish-compliant hardware management.
+
+.PARAMETER TargetURIs
+    Specifies one or more Redfish target URIs (IP addresses or hostnames). This is a mandatory parameter.
+
+.PARAMETER Credential
+    The credential to use for authentication (username and password). By default, the script prompts for credentials using `Get-Credential`.
+
+.PARAMETER redfishURLRoot
+    The root path for Redfish API (default: `/redfish/v1/`). Can be modified if the target uses a different base URL.
+
+.PARAMETER OutputDirectory
+    The directory where the JSON responses will be saved. If not specified, a directory named `RedfishAPI` is created in the script's directory.
+
+.PARAMETER URLFilter
+    A filter for the URL paths to crawl. Wildcards can be used to limit the scope of the crawl. By default, it matches all URLs.
+
+.EXAMPLE
+    .\Get-RecursiveRedfishLookup.ps1 -TargetURIs "10.0.0.16" -Credential (Get-Credential) -OutputDirectory "C:\RedfishData"
+
+    This example connects to the Redfish target at `10.0.0.16`, prompts for credentials, and crawls the `/redfish/v1/` API. 
+    The JSON responses are saved in `C:\RedfishData`.
+
+.EXAMPLE
+    .\Get-RecursiveRedfishLookup.ps1 -TargetURIs "10.0.0.16", "10.0.0.20" -Credential (Get-Credential) -URLFilter "*Systems*"
+
+    This example connects to two Redfish targets, filters the URLs to only match those containing "Systems", and saves the data to the default output directory.
+
+.NOTES
+    - This script requires PowerShell 7 or higher.
+    - The target must support the Redfish API.
+    - Ensure proper permissions are granted for the provided credentials.
+    - All errors are logged and can be reviewed for troubleshooting.
+
+.LICENSE
+    MIT License (c) 2024 Blake Cherry
+#>
 ################################################################################################################################
 # Define parameters
 param (
@@ -43,58 +85,62 @@ param (
 $ErrorActionPreference = 'Continue'
 #endregion Variables
 
-#region Import Required Modules
-# try {
-#     Import-Module SNIASwordfish -Force -ErrorAction Stop
-# } catch {
-#     Write-Error "Failed to import SNIASwordfish module. $_"
-#     exit 1
-# }
-#endregion Import Required Modules
-
 #region Functions
 ################################################################################################################################
-function Connect-SwordfishTarget 
-{
-[CmdletBinding(DefaultParameterSetName='Default')]
-param ( [Parameter(Mandatory=$true)]    [string]    $Target,
-                                        [string]    $Port,            
-        [Validateset("http","https")]   [string]    $Protocol   = "https"            
-      )
-Process
-  {   if ( $Protocol -eq 'http')
-                {   $Global:Base = "http://$($Target):$($Port)"
-                } else 
-                {   $Global:Base = "https://$($Target)"                
-                }
-            $Global:RedFishRoot = "/redfish/v1/"
-            $Global:BaseTarget  = $Target
-            $Global:BaseUri     = $Base+$RedfishRoot    
-            $Global:MOCK        = $false
-            $PowerShellVersion = ($PSVersionTable.PSVersion).major
-            Try     {   
-                        $ReturnData = invoke-restmethod -uri "$BaseUri" -SkipCertificateCheck
-                    }
-            Catch   {   $_
-                    }
-            if ( $ReturnData )
-                    {   write-verbose "The Global Redfish Root Location variable named RedfishRoot will be set to $RedfishRoot"
-                        write-verbose "The Global Base Target Location variable named BaseTarget will be set to $BaseTarget"
-                        write-verbose "The Global Base Uri Location variable named BaseUri will be set to $BaseUri"            
-                        return $ReturnData
-                    } 
-                else 
-                    {   Write-verbose "Since no connection was made, the global connection variables have been removed"
-                        remove-variable -name RedfishRoot -scope Global
-                        remove-variable -name BaseTarget -scope Global
-                        remove-variable -name Base -scope Global
-                        remove-variable -name BaseUri -scope Global
-                        remove-variable -name MOCK -scope Global
-                        Write-Error "No RedFish/Swordfish target Detected or wrong port used at that address"
-                    }
-  }
-} 
-Set-Alias -name 'Connect-RedfishTarget' -value 'Connect-SwordfishTarget'
+function Connect-SwordfishTarget {
+    [CmdletBinding(DefaultParameterSetName='Default')]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Target,       # Target hostname or IP address
+
+        [string]$Port,         # Port number for connection
+
+        [Validateset("http","https")]
+        [string]$Protocol = "https"  # Protocol to use (http or https)
+    )
+    Process {
+        # Construct the base URI based on protocol
+        if ($Protocol -eq 'http') {
+            $Global:Base = "http://$($Target):$($Port)"
+        } else {   
+            $Global:Base = "https://$($Target)"
+        }
+
+        # Set the Redfish API root path
+        $Global:RedFishRoot = "/redfish/v1/"
+        $Global:BaseTarget  = $Target
+        $Global:BaseUri     = $Base + $RedfishRoot    
+        $Global:MOCK        = $false  # Indicates whether to use mock data
+
+        Try {   
+            # Attempt to retrieve the root Redfish service
+            $ReturnData = Invoke-RestMethod -Uri "$BaseUri" -SkipCertificateCheck
+        }
+        Catch {
+            Write-Error "No RedFish/Swordfish target detected or wrong port used at that address. Error: $_"
+            exit 1
+        }
+
+        if ($ReturnData) {
+            # Connection successful; set global variables
+            Write-Verbose "The Global Redfish Root Location variable named RedfishRoot will be set to $RedfishRoot"
+            Write-Verbose "The Global Base Target Location variable named BaseTarget will be set to $BaseTarget"
+            Write-Verbose "The Global Base Uri Location variable named BaseUri will be set to $BaseUri"            
+            return $ReturnData
+        } 
+        else {   
+            # Connection failed; clean up global variables
+            Write-Verbose "Since no connection was made, the global connection variables have been removed"
+            Remove-Variable -Name RedfishRoot -Scope Global
+            Remove-Variable -Name BaseTarget -Scope Global
+            Remove-Variable -Name Base -Scope Global
+            Remove-Variable -Name BaseUri -Scope Global
+            Remove-Variable -Name MOCK -Scope Global
+            Write-Error "No RedFish/Swordfish target detected or wrong port used at that address"
+        }
+    }
+}
+Set-Alias -Name 'Connect-RedfishTarget' -Value 'Connect-SwordfishTarget'  # Alias for the connection function
 #### Function to authenticate to a Redfish or Swordfish target ####
 # This function sends a POST request to the session service to get a session token
 # Instead of using the SNIA Swordfish module, this module is used, as we need to populate the session ID to disconnect it later

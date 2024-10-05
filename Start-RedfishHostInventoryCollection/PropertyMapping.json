@@ -7,6 +7,30 @@
         "FallbackProperties": {
             "BootOrder": ["Boot", "BootSourceOverrideSupported"]
         },
-        "ResourceFilter": "/redfish/v1/Systems/*"
+        "ResourceFilter": "/redfish/v1/Systems/*",
+        "odataType": "#ComputerSystem.1.0.1.ComputerSystem"
+    },
+    "ChassisLog": {
+        "Properties": {
+            "SerialNumber": ["SerialNumber"],
+            "Manufacturer": ["Manufacturer"],
+            "Model": ["Model"]
+        },
+        "FallbackProperties": {
+            "SerialNumber": ["SerialNumber"]
+        },
+        "ResourceFilter": "/redfish/v1/Chassis/*",
+        "odataType": "#Chassis.1.0.0.Chassis"
+    },
+    "AccountLog": {
+        "Properties": {
+            "UserName": ["UserName"],
+            "LoginName": ["Oem", "Hp", "LoginName"],
+            "Privileges": ["Oem", "Hp", "Privileges"]
+        },
+        "FallbackProperties": {
+        },
+        "ResourceFilter": "/redfish/v1/AccountService/Accounts/*/",
+        "odataType": ""
     }
 }

@@ -33,7 +33,7 @@ param (
     [string]$OutputDirectory = ".\Logs",
 
     [Parameter(Mandatory = $false)]
-    [string]$PropertyMappingFile = (Join-Path $PSScriptRoot "PropertyMappings.json"),
+    [string]$PropertyMappingFile = (Join-Path $PSScriptRoot "PropertyMapping.json"),
 
     [Parameter(Mandatory = $false)]
     [bool]$JSONOutput = $true  # Parameter to control output format
@@ -42,15 +42,6 @@ param (
 #region Variables
 $ErrorActionPreference = 'Stop'  # Stop on all errors
 #endregion Variables
-
-#region Import Required Modules
-# try {
-#     Import-Module SNIASwordfish -Force -ErrorAction Stop
-# } catch {
-#     Write-Error "Failed to import SNIASwordfish module. $_"
-#     exit 1
-# }
-#endregion Import Required Modules
 
 #region Functions
 ################################################################################################################################
