@@ -14,6 +14,7 @@ These tools were featured in the presentation **"Mastering Server Management wit
     - [Start-RedfishHostInventoryCollection](#start-redfishhostinventorycollection)
     - [Get-RedfishTargetLogs](#get-redfishtargetlogs)
     - [Invoke-RemoteManagementActions](#invoke-remotemanagementactions)
+  - [Updated Emulator Files](#updated-emulator-files)
   - [License](#license)
 
 ## Overview
@@ -155,6 +156,12 @@ It acts as a powerful framework that connects to hardware targets using the Redf
 Refer to the [Invoke-RemoteManagementActions](Invoke-RemoteManagementActions/README.md) directory for a more detailed README and usage instructions.
 
 ---
+
+## Updated Emulator Files
+
+Also included in this repository are updated emulator files for the [Redfish PowerShell Emulator](https://github.com/Cray-HPE/csm-redfish-interface-emulator). These files patch several issues in the original emulator, and offer recommended Dockerfile and Docker Compose configurations for running the emulator in a containerized environment.
+
+Refer to the [Mastering Server Management with PowerShell and Redfish Protocol](Mastering%20Server%20Management%20with%20PowerShell%20and%20Redfish%20Protocol.pdf) presentation for more information on how this emulator can be used in conjunction with the PowerShell scripts.
 
 ## License
 

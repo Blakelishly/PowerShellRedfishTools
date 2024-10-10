@@ -1,0 +1,171 @@
+---
+
+services:
+
+  cmm:
+    hostname: CMM
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=CMM
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8460:5000"
+
+  ex235a:
+    hostname: EX235a
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=EX235a
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8461:5000"
+
+  ex420:
+    hostname: EX420
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=EX420
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8462:5000"
+
+  ex4252:
+    hostname: EX4252
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=EX4252
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8463:5000"
+
+  intel:
+    hostname: Intel
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=Intel
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8464:5000"
+
+  slingshotswitchblade:
+    hostname: Slingshot_Switch_Blade
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=Slingshot_Switch_Blade
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8465:5000"
+
+  xl675d_a40:
+    hostname: XL675d_A40
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=XL675d_A40
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8466:5000"
+
+  dl325:
+    hostname: DL325
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=DL325
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8467:5000"
+
+  ex235n:
+    hostname: EX235n
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=EX235n
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8468:5000"
+
+  ex425:
+    hostname: EX425
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=EX425
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8469:5000"
+
+  gigabyte:
+    hostname: Gigabyte
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=Gigabyte
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8470:5000"
+
+  openbmcstock:
+    hostname: OpenBMC-stock
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=OpenBMC-stock
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8471:5000"
+
+  xl675d_a100:
+    hostname: XL675d_A100
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=XL675d_A100
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8472:5000"
+
+  publicrackmount1:
+    hostname: public-rackmount1
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      - MOCKUPFOLDER=public-rackmount1
+      - PORT=5000
+      - AUTH_CONFIG=redfish:redfish123:Administrator
+    ports:
+      - "8473:5000"
