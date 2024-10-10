@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 #region License ############################################################
 # Copyright (c) 2024 Blake Cherry
 #
@@ -19,7 +20,53 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #endregion License ############################################################
+<#
+.SYNOPSIS
+    A PowerShell script to retrieve and process system logs from Redfish API targets.
 
+.DESCRIPTION
+    This script connects to one or more Redfish API targets, authenticates the session, retrieves system and log information, processes log entries according to specified property mappings, and saves the logs in either JSON or text format to an output directory. The script facilitates centralized log collection and processing from multiple Redfish-compliant hardware systems.
+
+.PARAMETER TargetURIs
+    Specifies one or more Redfish target URIs (IP addresses or hostnames). This is a mandatory parameter.
+
+.PARAMETER Credential
+    The credential to use for authentication (username and password). By default, the script prompts for credentials using `Get-Credential`.
+
+.PARAMETER OutputDirectory
+    The directory where the logs will be saved. If not specified, a directory named `Logs` is created in the script's directory.
+
+.PARAMETER PropertyMappingFile
+    The path to the JSON file containing property mappings for processing log entries. If not specified, a file named `PropertyMapping.json` in the script's directory is used.
+
+.PARAMETER JSONOutput
+    A boolean parameter to control the output format. If `$true`, logs are saved in JSON format; if `$false`, logs are saved in text format. Default is `$true`.
+
+.EXAMPLE
+    .\Get-RedfishTargetLogs.ps1 -TargetURIs "10.0.0.16" -Credential (Get-Credential) -OutputDirectory "C:\Logs" -JSONOutput $true
+
+    This example connects to the Redfish target at `10.0.0.16`, prompts for credentials, retrieves system logs, processes them according to the default property mappings, and saves the logs in JSON format to `C:\Logs`.
+
+.EXAMPLE
+    .\Get-RedfishTargetLogs.ps1 -TargetURIs "10.0.0.16" -Credential (Get-Credential) -JSONOutput $false
+
+    This example connects to the Redfish target at `10.0.0.16`, prompts for credentials, retrieves system logs, processes them, and saves the logs in text format to the default `.\Logs` directory.
+
+.EXAMPLE
+    .\Get-RedfishTargetLogs.ps1 -TargetURIs "10.0.0.16", "10.0.0.20" -Credential (Get-Credential) -PropertyMappingFile "C:\Config\CustomPropertyMapping.json"
+
+    This example connects to two Redfish targets, uses a custom property mapping file for processing log entries, and saves the logs in JSON format to the default `.\Logs` directory.
+
+.NOTES
+    - This script requires PowerShell 7 or higher.
+    - The target must support the Redfish API.
+    - Ensure proper permissions are granted for the provided credentials.
+    - The `PropertyMapping.json` file defines how log entries are processed.
+    - All errors are logged and can be reviewed for troubleshooting.
+
+.LICENSE
+    MIT License (c) 2024 Blake Cherry
+#>
 ################################################################################################################################
 # Define parameters
 param (
@@ -45,7 +92,7 @@ $ErrorActionPreference = 'Stop'  # Stop on all errors
 
 #region Functions
 ################################################################################################################################
-function Connect-SwordfishTarget 
+function Connect-SwordfishTarget2 
 {
 [CmdletBinding(DefaultParameterSetName='Default')]
 param ( [Parameter(Mandatory=$true)]    [string]    $Target,
@@ -84,7 +131,7 @@ Process
                     }
   }
 } 
-Set-Alias -name 'Connect-RedfishTarget' -value 'Connect-SwordfishTarget'
+Set-Alias -name 'Connect-RedfishTarget2' -value 'Connect-SwordfishTarget2'
 #### Function to authenticate to a Redfish or Swordfish target ####
 # This function sends a POST request to the session service to get a session token
 # Instead of using the SNIA Swordfish module, this module is used, as we need to populate the session ID to disconnect it later
@@ -109,11 +156,11 @@ function Set-TargetAuthentication {
 
         # Connect to the target
         Write-Verbose "Connecting to Redfish target at $URI"
-        $connect = Connect-RedfishTarget -Target $URI
+        $connect = Connect-RedfishTarget2 -Target $URI
         Write-Verbose "Attempting to get session token"
 
         if ( -not $BaseUri ) {   
-            Write-Warning "This command requires that you run the Connect-SwordfishTarget or Connect-RedfishTarget first."
+            Write-Warning "This command requires that you run the Connect-SwordfishTarget2 or Connect-RedfishTarget2 first."
             return
         } 
         $SSBody = @{
@@ -202,18 +249,23 @@ function Invoke-RedfishWebRequest {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$URL,
-        [string]$Method = 'GET',
-        $Body
+        [string]$URL,  # The endpoint URL for the request
+
+        [string]$Method = 'GET',  # HTTP method to use
+
+        $Body  # Body content for POST/PATCH requests
     )
     try {
-        # Prepare the full URL
+        # Construct the full URL
         if ($URL -notmatch '^https?://') {
             $fullURL = $Global:Base + $URL
         } else {
             $fullURL = $URL
         }
-        # Prepare headers
+        # If there are 2 trailing slashes, remove one
+        $fullURL = $fullURL -replace '([^:])//', '$1/'
+
+        # Prepare headers with authentication token if available
         $headers = @{}
         if ($Global:XAuthToken) {
             $headers['X-Auth-Token'] = $Global:XAuthToken
@@ -221,14 +273,25 @@ function Invoke-RedfishWebRequest {
         else {
             Write-Warning "No auth token is configured. Skipping headers."
         }
-        # Send GET request
-        Write-Verbose "Sending GET request to $fullURL"
+
+        # Log the request
+        Write-Verbose "Sending $Method request to $fullURL"
+
+        # Send the web request based on the presence of a body
         if ($Body) {   
-            $response = Invoke-WebRequest -Method $Method -Uri $fullURL -Headers $headers -SkipCertificateCheck -Body $Body
+            $response = Invoke-WebRequest -Method $Method `
+                                         -Uri $fullURL `
+                                         -Headers $headers `
+                                         -SkipCertificateCheck `
+                                         -Body $Body `
+                                         -ContentType 'application/json'
         } else {   
-            $response = Invoke-WebRequest -Method $Method -Uri $fullURL -Headers $headers -SkipCertificateCheck
+            $response = Invoke-WebRequest -Method $Method `
+                                         -Uri $fullURL `
+                                         -Headers $headers `
+                                         -SkipCertificateCheck
         }
-        
+
         return $response
     } catch {
         Write-Error "Failed to get data from $URL. Error: $_"

@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 #region License ############################################################
 # Copyright (c) 2024 Blake Cherry
 #
@@ -87,7 +88,7 @@ $ErrorActionPreference = 'Continue'
 
 #region Functions
 ################################################################################################################################
-function Connect-SwordfishTarget {
+function Connect-SwordfishTarget2 {
     [CmdletBinding(DefaultParameterSetName='Default')]
     param (
         [Parameter(Mandatory=$true)]
@@ -140,7 +141,7 @@ function Connect-SwordfishTarget {
         }
     }
 }
-Set-Alias -Name 'Connect-RedfishTarget' -Value 'Connect-SwordfishTarget'  # Alias for the connection function
+Set-Alias -Name 'Connect-RedfishTarget2' -Value 'Connect-SwordfishTarget2'  # Alias for the connection function
 #### Function to authenticate to a Redfish or Swordfish target ####
 # This function sends a POST request to the session service to get a session token
 # Instead of using the SNIA Swordfish module, this module is used, as we need to populate the session ID to disconnect it later
@@ -165,11 +166,11 @@ function Set-TargetAuthentication {
 
         # Connect to the target
         Write-Verbose "Connecting to Redfish target at $URI"
-        $connect = Connect-RedfishTarget -Target $URI
+        $connect = Connect-RedfishTarget2 -Target $URI
         Write-Verbose "Attempting to get session token"
 
         if ( -not $BaseUri ) {   
-            Write-Warning "This command requires that you run the Connect-SwordfishTarget or Connect-RedfishTarget first."
+            Write-Warning "This command requires that you run the Connect-SwordfishTarget2 or Connect-RedfishTarget2 first."
             return
         } 
         $SSBody = @{
@@ -258,18 +259,23 @@ function Invoke-RedfishWebRequest {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$URL,
-        [string]$Method = 'GET',
-        $Body
+        [string]$URL,  # The endpoint URL for the request
+
+        [string]$Method = 'GET',  # HTTP method to use
+
+        $Body  # Body content for POST/PATCH requests
     )
     try {
-        # Prepare the full URL
+        # Construct the full URL
         if ($URL -notmatch '^https?://') {
             $fullURL = $Global:Base + $URL
         } else {
             $fullURL = $URL
         }
-        # Prepare headers
+        # If there are 2 trailing slashes, remove one
+        $fullURL = $fullURL -replace '([^:])//', '$1/'
+
+        # Prepare headers with authentication token if available
         $headers = @{}
         if ($Global:XAuthToken) {
             $headers['X-Auth-Token'] = $Global:XAuthToken
@@ -277,14 +283,25 @@ function Invoke-RedfishWebRequest {
         else {
             Write-Warning "No auth token is configured. Skipping headers."
         }
-        # Send GET request
-        Write-Verbose "Sending GET request to $fullURL"
+
+        # Log the request
+        Write-Verbose "Sending $Method request to $fullURL"
+
+        # Send the web request based on the presence of a body
         if ($Body) {   
-            $response = Invoke-WebRequest -Method $Method -Uri $fullURL -Headers $headers -SkipCertificateCheck -Body $Body
+            $response = Invoke-WebRequest -Method $Method `
+                                         -Uri $fullURL `
+                                         -Headers $headers `
+                                         -SkipCertificateCheck `
+                                         -Body $Body `
+                                         -ContentType 'application/json'
         } else {   
-            $response = Invoke-WebRequest -Method $Method -Uri $fullURL -Headers $headers -SkipCertificateCheck
+            $response = Invoke-WebRequest -Method $Method `
+                                         -Uri $fullURL `
+                                         -Headers $headers `
+                                         -SkipCertificateCheck
         }
-        
+
         return $response
     } catch {
         Write-Error "Failed to get data from $URL. Error: $_"
@@ -354,6 +371,7 @@ function Start-CrawlRedfishResource {
         $match = $false
         $pathSegments = $relativeURL -split '/'
         $filterSegments = $URLFilter -split '/'
+        Write-Debug "Checking URL $URL against the filter '$URLFilter'."
 
         for ($i=0; $i -lt $pathSegments.Count; $i++) {
             if ($i -ge $filterSegments.Count) {

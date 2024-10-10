@@ -1,5 +1,5 @@
 {
-    "BootSourceOverride": {
+    "BootSourceOverride-iLO4": {
         "GetCommand": {
             "Method": "GET",
             "PropertyNames": [
@@ -23,7 +23,7 @@
         "SetResourceFilter": "/redfish/v1/Systems/*/",
         "DeleteResourceFilter": ""
     },
-    "LocalUserAccountManagement": {
+    "LocalUserAccountManagement-iLO5": {
         "GetCommand": {
             "Method": "GET",
             "PropertyNames": [

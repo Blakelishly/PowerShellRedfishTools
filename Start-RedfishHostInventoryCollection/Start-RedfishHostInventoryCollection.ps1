@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 #region License ############################################################
 # Copyright (c) 2024 Blake Cherry
 #
@@ -19,7 +20,42 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #endregion License ############################################################
+<#
+.SYNOPSIS
+    A PowerShell script to import, process, and export Redfish JSON data to CSV files based on property mappings.
 
+.DESCRIPTION
+    This script recursively imports Redfish JSON data from a specified root directory, processes the data according to provided property mappings, and exports the processed data to CSV files in an output directory. It facilitates data extraction and transformation from Redfish API responses saved as JSON files.
+
+.PARAMETER RootDirectory
+    Specifies the root directory containing the Redfish JSON files to import. This is a mandatory parameter.
+    This should be output from the Get-RecursiveRedfishLookup.ps1 script.
+
+.PARAMETER OutputDirectory
+    The directory where the processed CSV files will be saved. If not specified, a directory named `Output` is created in the script's directory.
+
+.PARAMETER PropertyMappingFile
+    The path to the JSON file containing property mappings for processing the imported data. If not specified, a file named `PropertyMapping.json` in the script's directory is used.
+
+.EXAMPLE
+    .\Start-RedfishHostInventoryCollection.ps1 -RootDirectory "C:\RedfishData" -OutputDirectory "C:\ProcessedData" -PropertyMappingFile "C:\Config\PropertyMapping.json"
+
+    This example imports Redfish JSON data from `C:\RedfishData`, processes it using the property mappings defined in `C:\Config\PropertyMapping.json`, and exports the processed data to CSV files in `C:\ProcessedData`.
+
+.EXAMPLE
+    .\Start-RedfishHostInventoryCollection.ps1 -RootDirectory "C:\RedfishData"
+
+    This example imports Redfish JSON data from `C:\RedfishData`, processes it using the default property mappings, and exports the processed data to CSV files in the default `Output` directory.
+
+.NOTES
+    - This script requires PowerShell 7 or higher.
+    - The JSON files should be organized under `redfish/v1/` in the directory structure.
+    - The `PropertyMapping.json` file defines how properties are extracted and processed.
+    - All errors are logged and can be reviewed for troubleshooting.
+
+.LICENSE
+    MIT License (c) 2024 Blake Cherry
+#>
 ################################################################################################################################
 # Define parameters
 param (
@@ -27,7 +63,10 @@ param (
     [string]$RootDirectory,
 
     [Parameter(Mandatory = $false)]
-    [string]$CSVOutputPath = (Join-Path $PSScriptRoot "Output")
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot "Output"),
+
+    [Parameter(Mandatory = $false)]
+    [string]$PropertyMappingFile = (Join-Path $PSScriptRoot "PropertyMapping.json")
 )
 
 #region Variables
@@ -291,9 +330,9 @@ $importedData = Import-RedfishJsonData -RootDirectory $RootDirectory
 Write-Host "Imported data from $($importedData.Count) JSON files."
 
 # Step 2: Load property mappings from JSON file
-Write-Host "Loading property mappings from 'PropertyMapping.json'."
-$PropertyMappings = Get-Content -Path 'PropertyMapping.json' -raw | ConvertFrom-Json -asHashtable
-Write-Host "Loaded property mappings from 'PropertyMapping.json'."
+Write-Host "Loading property mappings from file: $PropertyMappingFile"
+$PropertyMappings = Get-Content -Path $PropertyMappingFile -Raw | ConvertFrom-Json -AsHashtable
+Write-Host "Loaded property mappings from $($PropertyMappings.Count) mappings."
 Write-Verbose "Property mappings: $($PropertyMappings | select * | Out-String)"
 
 # Step 3: Process the imported data using the property mappings
@@ -302,15 +341,14 @@ $processedEntries = Start-ProcessRedfishEntries -ImportedData $importedData -Pro
 Write-Host "Processed $($processedEntries.Count) entries."
 
 # Step 4: Export the processed entries to CSV
-Write-Host "Exporting processed data to '$CSVOutputPath'."
+Write-Host "Exporting processed data to '$OutputDirectory'."
 # If the output path does not exist, create it
-if (-not (Test-Path $CSVOutputPath)) {
-    Write-Host "Creating output directory: $CSVOutputPath"
-    New-Item -ItemType Directory -Path $CSVOutputPath | Out-Null
+if (-not (Test-Path $OutputDirectory)) {
+    Write-Host "Creating output directory: $OutputDirectory"
+    New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 }
 foreach ($entry in $processedEntries.keys) {
-    # Corrected: Use $entry.Key instead of $entry.Name
-    $path = Join-Path $CSVOutputPath "$entry.csv"
+    $path = Join-Path $OutputDirectory "$entry.csv"
     Write-Debug "Exporting processed data for mapping '$($entry)' to path '$path'."
     $processedEntries.$entry | Export-Csv -Path $path -NoTypeInformation
     Write-Host "Exported processed data to $path."

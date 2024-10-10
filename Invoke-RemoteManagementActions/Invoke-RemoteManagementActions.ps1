@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 #region License ############################################################
 # Copyright (c) 2024 Blake Cherry
 #
@@ -19,7 +20,42 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #endregion License ############################################################
+<#
+.SYNOPSIS
+    A PowerShell script to interactively perform GET, SET, and DELETE operations on a Redfish/Swordfish API target based on an action mapping file.
 
+.DESCRIPTION
+    This script connects to a Redfish/Swordfish API target, authenticates the session, and provides an interactive CLI for managing resources. Users can select from predefined actions specified in an action mapping JSON file to perform GET, SET, and DELETE operations. The script facilitates automation and management tasks on Redfish-compliant hardware systems.
+
+.PARAMETER TargetURI
+    Specifies the Redfish target URI (IP address or hostname). This is a mandatory parameter.
+
+.PARAMETER Credential
+    The credential to use for authentication (username and password). By default, the script prompts for credentials using `Get-Credential`.
+
+.PARAMETER ActionMappingFile
+    The path to the JSON file containing action mappings for the script. If not specified, a file named `ActionMapping.json` in the script's directory is used.
+
+.EXAMPLE
+    .\Invoke-RemoteManagementActions.ps1 -TargetURI "10.0.0.16" -Credential (Get-Credential) -ActionMappingFile "C:\Config\ActionMapping.json"
+
+    This example connects to the Redfish target at `10.0.0.16`, prompts for credentials, loads the action mappings from `C:\Config\ActionMapping.json`, and starts the interactive CLI.
+
+.EXAMPLE
+    .\Invoke-RemoteManagementActions.ps1 -TargetURI "10.0.0.16" -Credential (Get-Credential)
+
+    This example connects to the Redfish target at `10.0.0.16`, prompts for credentials, uses the default `ActionMapping.json` file in the script's directory, and starts the interactive CLI.
+
+.NOTES
+    - This script requires PowerShell 7 or higher.
+    - The target must support the Redfish/Swordfish API.
+    - Ensure proper permissions are granted for the provided credentials.
+    - The `ActionMapping.json` file defines available actions and their execution details.
+    - All errors are logged and can be reviewed for troubleshooting.
+
+.LICENSE
+    MIT License (c) 2024 Blake Cherry
+#>
 ################################################################################################################################
 # Define parameters
 param (
@@ -27,7 +63,10 @@ param (
     [string]$TargetURI,  # The URI of the target Redfish/Swordfish service
 
     [Parameter(Mandatory = $false)]
-    [System.Management.Automation.PSCredential]$Credential = (Get-Credential)  # Credentials for authentication
+    [System.Management.Automation.PSCredential]$Credential = (Get-Credential),  # Credentials for authentication
+
+    [Parameter(Mandatory = $false)]
+    [string]$ActionMappingFile = 'ActionMapping.json'  # File containing action mappings
 )
 
 #region Variables
@@ -36,9 +75,9 @@ $ErrorActionPreference = 'Continue'  # Continue execution on non-terminating err
 
 #region Functions
 ################################################################################################################################
-# Function: Connect-SwordfishTarget
+# Function: Connect-SwordfishTarget2
 # Description: Establishes a connection to the Swordfish/Redfish target by setting global variables
-function Connect-SwordfishTarget {
+function Connect-SwordfishTarget2 {
     [CmdletBinding(DefaultParameterSetName='Default')]
     param (
         [Parameter(Mandatory=$true)]
@@ -91,7 +130,7 @@ function Connect-SwordfishTarget {
         }
     }
 }
-Set-Alias -Name 'Connect-RedfishTarget' -Value 'Connect-SwordfishTarget'  # Alias for the connection function
+Set-Alias -Name 'Connect-RedfishTarget2' -Value 'Connect-SwordfishTarget2'  # Alias for the connection function
 
 #### Function: Set-TargetAuthentication ####
 # Description: Authenticates to the Redfish/Swordfish target by obtaining a session token
@@ -116,13 +155,13 @@ function Set-TargetAuthentication {
 
         # Connect to the target
         Write-Verbose "Connecting to Redfish target at $URI"
-        $connect = Connect-RedfishTarget -Target $URI
+        $connect = Connect-RedfishTarget2 -Target $URI
         Write-Verbose "Attempting to get session token"
 
         if (-not $BaseUri) {   
-            Write-Warning "This command requires that you run the Connect-SwordfishTarget or Connect-RedfishTarget first."
+            Write-Warning "This command requires that you run the Connect-SwordfishTarget2 or Connect-RedfishTarget2 first."
             return
-        } 
+        }
 
         # Prepare the authentication body
         $SSBody = @{
@@ -234,6 +273,8 @@ function Invoke-RedfishWebRequest {
         } else {
             $fullURL = $URL
         }
+        # If there are 2 trailing slashes, remove one
+        $fullURL = $fullURL -replace '([^:])//', '$1/'
 
         # Prepare headers with authentication token if available
         $headers = @{}
@@ -339,9 +380,15 @@ function Start-CrawlRedfishResource {
         $match = $false
         $pathSegments = $relativeURL -split '/'
         $filterSegments = $URLFilter -split '/'
+        Write-Debug "Checking URL $URL against the filter '$URLFilter'."
 
         for ($i=0; $i -lt $pathSegments.Count; $i++) {
-            if ($i -ge $filterSegments.Count) {
+            Write-Debug "Comparing path segment '$($pathSegments[$i])' with filter segment '$($filterSegments[$i])'"
+            # If the path segment is empty, skip comparison
+            if (-not $pathSegments[$i] -or $pathSegments[$i] -eq '') {
+                continue
+            }
+            elseif ($i -ge $filterSegments.Count) {
                 $match = $false
                 break
             }
@@ -634,7 +681,7 @@ function Perform-DeleteOperation {
             # Perform DELETE request
             try {
                 Write-Verbose "Sending DELETE request to $resourceUri"
-                $deleteResponse = Invoke-RedfishWebRequest -URL $resourceUri -Method 'DELETE'
+                $deleteResponse = Invoke-RedfishWebRequest -URL $resourceUri -Method 'DELETE' -ErrorAction SilentlyContinue
                 Write-Host "DELETE request sent successfully."
 
                 # Optionally, confirm deletion by attempting to GET the resource
@@ -669,6 +716,11 @@ if ($TargetURI -isnot [string]) {
     Write-Error "TargetURI must be a string"
     return
 }
+# Validate that ActionMappingFile exists
+if (-not (Test-Path -Path $ActionMappingFile)) {
+    Write-Error "ActionMappingFile '$ActionMappingFile' does not exist"
+    return
+}
 
 Write-Host "Executing script against $TargetURI target"
 
@@ -680,7 +732,7 @@ try {
     Set-TargetAuthentication -URI $TargetURI -Credential $Credential
 
     # Read the action mappings from the JSON file
-    $actionMappings = Get-Content -Path 'ActionMapping.json' | ConvertFrom-Json
+    $actionMappings = Get-Content -Path $ActionMappingFile | ConvertFrom-Json
 
     # Start interactive CLI application
     $exitApp = $false

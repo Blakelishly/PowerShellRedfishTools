@@ -1,14 +1,14 @@
-# Redfish/Swordfish Log Collection Script
+# Get-RedfishTargetLogs.ps1
 
 This PowerShell script connects to Redfish or Swordfish targets to collect system logs and outputs them in either JSON or custom-formatted log files. It uses customizable property mappings defined in a `PropertyMapping.json` file to tailor the log entry structures according to your needs.
 
+This script queries for logs from the `/redfish/v1/Systems/$SystemID/LogServices/` endpoint of the Redfish/Swordfish API. It retrieves log entries from the `Entries` collection and processes them based on the property mappings defined in the `PropertyMapping.json` file.
+
 ## Table of Contents
 
-- [Redfish/Swordfish Log Collection Script](#redfishswordfish-log-collection-script)
+- [Get-RedfishTargetLogs.ps1](#get-redfishtargetlogsps1)
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-    - [Installing the `SNIASwordfish` Module](#installing-the-sniaswordfish-module)
   - [Usage](#usage)
     - [Parameters](#parameters)
     - [Examples](#examples)
@@ -19,70 +19,13 @@ This PowerShell script connects to Redfish or Swordfish targets to collect syste
       - [LogFormat](#logformat)
     - [Default Mappings](#default-mappings)
     - [Tips for Customizing Property Mappings](#tips-for-customizing-property-mappings)
+      - [Notes](#notes)
   - [License](#license)
 
 ## Prerequisites
 
 - **PowerShell 7**
-- **SNIASwordfish PowerShell module**
 - **Network access to Redfish/Swordfish-compliant targets**
-
-## Installation
-
-### Installing the `SNIASwordfish` Module
-
-The script requires the `SNIASwordfish` module, which is not available in the PowerShell Gallery. You need to download it from the GitHub repository and manually import it.
-
-1. **Download the Module:**
-
-   Clone or download the `Swordfish-Powershell-Toolkit` repository from GitHub:
-
-   ```bash
-   git clone https://github.com/SNIA/Swordfish-Powershell-Toolkit.git
-    ```
-
-    Alternatively, you can download the repository as a ZIP file and extract it.
-
-2. **Locate the Module Path:**
-
-   The `SNIASwordfish` module is located within the repository you just downloaded. Create a directory named SNIASwordfish in your module directory.
-   
-   You can find your module directories by running:the following path:
-
-   ```powershell
-   $env:PSModulePath -split ';'
-   ```
-
-   Or, you can copy the module to one of the common module directories. Common module directories include:
-
-   - For all users: `C:\Program Files\WindowsPowerShell\Modules`
-   - For the current user: `C:\Users\<YourUserName>\Documents\WindowsPowerShell\Modules`
-
-   ```plaintext
-   C:\Program Files\WindowsPowerShell\Modules\
-   ```
-
-3. **Copy the Module to a PowerShell Module Directory:**
-
-   Copy the `SNIASwordfish` folder to one of your PowerShell module directories. And restart your PowerShell session.
-
-   ```powershell
-    Copy-Item -Path "Path\To\Swordfish-Powershell-Toolkit" -Destination "Path\To\PowerShell\Modules" -Recurse
-    ```
-
-4. **Import the Module:**
-   
-   In your PowerShell session, import the module:
-
-   ```powershell
-   Import-Module SNIASwordfish.psm1
-   ```
-
-   You can verify that the module is imported by running:
-
-   ```powershell
-   Get-Module -ListAvailable SNIASwordfish
-   ```
 
 ## Usage
 
@@ -101,10 +44,10 @@ The script accepts the following parameters:
 **Example 1: Collect Logs in JSON Format**
 
 ```powershell
-$targets = @("https://example-target1.com", "https://example-target2.com")
+$targets = @("example-target1", "example-target2.exampledomain.com")
 $cred = Get-Credential
 
-.\Collect-RedfishLogs.ps1 -TargetURIs $targets -Credential $cred
+.\Get-RedfishTargetLogs.ps1 -TargetURIs $targets -Credential $cred
 ```
 
 **Example 2: Collect Logs in Custom Log File Format**
@@ -113,16 +56,16 @@ $cred = Get-Credential
 $targets = @("10.0.0.100, 10.0.0.110")
 $cred = Get-Credential
 
-.\Collect-RedfishLogs.ps1 -TargetURIs $targets -Credential $cred -JSONOutput $false
+.\Get-RedfishTargetLogs.ps1 -TargetURIs $targets -Credential $cred -JSONOutput $false
 ```
 
 **Example 3: Specify Custom Output Directory and Property Mapping File**
 
 ```powershell
-$targets = @("https://example-target1.com")
+$targets = @("10.0.100.0:5000")
 $cred = Get-Credential
 
-.\Collect-RedfishLogs.ps1 -TargetURIs $targets -Credential $cred -OutputDirectory "C:\Logs" -PropertyMappingFile "C:\Config\MyPropertyMapping.json"
+.\Get-RedfishTargetLogs.ps1 -TargetURIs $targets -Credential $cred -OutputDirectory "C:\Logs" -PropertyMappingFile "C:\Config\MyPropertyMapping.json"
 ```
 
 ## Property Mapping Configuration
@@ -257,7 +200,7 @@ This default mapping extracts the `Message`, `Severity`, `Created`, and `RecordI
 - **Test Placeholders:** Make sure all placeholders in your `LogFormat` strings have corresponding entries in the `Properties` section.
 - **Handle Missing Properties:** The script will replace placeholders with empty strings if the property is missing.
 
-**Notes**
+#### Notes
   - **Credentials:** The script uses a single set of provided credentials to authenticate with the targets. Ensure the account exists across all hosts and that the credentials have the necessary permissions.
   - **Authentication:** The script uses session-based authentication and attempts to disconnect sessions gracefully after execution.
   - **Error Handling:** The script stops on all errors due to `$ErrorActionPreference = 'Stop'`. Adjust as necessary.
