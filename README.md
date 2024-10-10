@@ -159,7 +159,7 @@ Refer to the [Invoke-RemoteManagementActions](Invoke-RemoteManagementActions/REA
 
 ## Updated Emulator Files
 
-Also included in this repository are updated emulator files for the [Redfish PowerShell Emulator](https://github.com/Cray-HPE/csm-redfish-interface-emulator). These files patch several issues in the original emulator, and offer recommended Dockerfile and Docker Compose configurations for running the emulator in a containerized environment.
+Also included in this repository are updated emulator files for the [csm-redfish-interface-emulator](https://github.com/Cray-HPE/csm-redfish-interface-emulator). These files patch several issues in the original emulator, and offer recommended Dockerfile and Docker Compose configurations for running the emulator in a containerized environment.
 
 Refer to the [Mastering Server Management with PowerShell and Redfish Protocol](Mastering%20Server%20Management%20with%20PowerShell%20and%20Redfish%20Protocol.pdf) presentation for more information on how this emulator can be used in conjunction with the PowerShell scripts.
 
